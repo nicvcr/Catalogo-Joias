@@ -28,6 +28,7 @@ let allCategories = [];
 let allProducts = [];
 let allClients = [];
 let photoB64 = null;
+let editingProductId = null;
 let isAdminMode = false;
 
 const ADMIN_USER = "admin";
@@ -35,18 +36,25 @@ const ADMIN_PASS = "admin123";
 </script>
 
 <style>
-:root{--bg:#faf6f0;--card:#ffffff;--text:#2a2320;--muted:#7a6f66;--accent:#b8941f;--accent-soft:rgba(184,148,31,.1);--accent2:#0a9e99;--accent2-soft:rgba(10,158,153,.1);--border:rgba(42,35,32,.1)}
+:root{--bg:#faf6f0;--card:#ffffff;--text:#2a2320;--muted:#7a6f66;--accent:#b8941f;--accent-soft:rgba(184,148,31,.1);--accent2:#0a9e99;--accent2-soft:rgba(10,158,153,.1);--sold:#dc2626;--sold-soft:rgba(220,38,38,.08);--border:rgba(42,35,32,.1)}
 body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;min-height:100%;margin:0;}
 .reveal{opacity:0;transform:translateY(20px);animation:fadeUp .6s ease forwards;}
 @keyframes fadeUp{to{opacity:1;transform:translateY(0);}}
-.product-card{transition:transform .3s ease,border-color .3s ease,box-shadow .3s ease;}
+.product-card{transition:transform .3s ease,border-color .3s ease,box-shadow .3s ease;position:relative;}
 .product-card:hover{transform:translateY(-4px);border-color:var(--accent);box-shadow:0 12px 40px rgba(184,148,31,.12);}
+.product-image-container{width:100%;min-height:180px;max-height:320px;background:var(--bg);display:flex;align-items:center;justify-content:center;overflow:hidden;border-radius:12px 12px 0 0;}
+.product-image-container img{width:100%;height:auto;max-height:320px;object-fit:contain;}
 .category-btn{transition:all .2s ease;}
 .category-btn:hover{border-color:var(--accent);color:var(--accent);}
 .category-btn.active{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);}
 .modal-backdrop{background:rgba(0,0,0,.5);backdrop-filter:blur(4px);}
 .gold-btn{background:var(--accent-soft);color:var(--text);border:1px solid var(--accent);transition:all .2s ease;}
 .gold-btn:hover{background:rgba(184,148,31,.18);}
+.sold-btn{background:var(--sold-soft);color:var(--sold);border:1px solid rgba(220,38,38,.25);transition:all .2s ease;}
+.sold-btn:hover{background:rgba(220,38,38,.15);}
+.edit-btn{background:rgba(10,158,153,.08);color:var(--accent2);border:1px solid rgba(10,158,153,.25);transition:all .2s ease;}
+.edit-btn:hover{background:rgba(10,158,153,.15);}
+.sold-badge{position:absolute;top:10px;left:10px;background:var(--sold);color:#fff;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:1px;z-index:10;}
 .ghost-btn{background:transparent;color:var(--muted);border:1px solid var(--border);transition:all .2s ease;}
 .ghost-btn:hover{border-color:var(--muted);color:var(--text);}
 .danger-btn{background:rgba(220,38,38,.08);color:#b91c1c;border:1px solid rgba(220,38,38,.25);transition:all .2s ease;}
@@ -68,6 +76,9 @@ td{padding:10px 8px;border-bottom:1px solid var(--border);font-size:14px;}
 .paste-area{border:2px dashed var(--accent2);border-radius:12px;padding:20px;text-align:center;cursor:pointer;transition:all .2s ease;background:var(--accent2-soft);}
 .paste-area:hover{background:rgba(10,158,153,.18);}
 .barcode-text{font-size:11px;letter-spacing:3px;color:var(--muted);font-family:Courier,monospace;margin-top:4px;}
+.hidden-field{background:rgba(184,148,31,.05);border-left:3px solid var(--accent);}
+.editing-title{color:var(--accent2);}
+.product-description{font-size:13px;color:var(--muted);line-height:1.5;margin:8px 0;}
 </style>
 </head>
 <body>
@@ -164,7 +175,7 @@ td{padding:10px 8px;border-bottom:1px solid var(--border);font-size:14px;}
   <!-- ========== ABA PRODUTOS ========== -->
   <div id="tab-products" class="tab-content active">
     <div style="background:var(--card);border:1px solid var(--border);border-radius:20px;padding:32px;margin-bottom:32px;">
-      <h3 style="font-size:18px;font-weight:600;margin-bottom:20px;">+ Cadastrar Novo Produto</h3>
+      <h3 id="productFormTitle" style="font-size:18px;font-weight:600;margin-bottom:20px;">+ Cadastrar Novo Produto</h3>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;">
         <div style="grid-column:1/-1;">
           <label style="display:block;font-size:13px;color:var(--muted);margin-bottom:6px;">Nome do produto</label>
@@ -183,38 +194,44 @@ td{padding:10px 8px;border-bottom:1px solid var(--border);font-size:14px;}
           <select id="prodCategory" class="input-field"><option value="">Carregando...</option></select>
         </div>
         <div style="grid-column:1/-1;">
+          <label style="display:block;font-size:13px;color:var(--accent);margin-bottom:6px;font-weight:500;">🏷️ Fornecedor <small style="font-weight:normal;color:var(--muted);">(Apenas visível para você)</small></label>
+          <input type="text" id="prodSupplier" class="input-field hidden-field" placeholder="Nome do fornecedor">
+        </div>
+        <div style="grid-column:1/-1;">
           <label style="display:block;font-size:13px;color:var(--muted);margin-bottom:6px;">Descrição</label>
           <textarea id="prodDescription" class="input-field" placeholder="Material, detalhes..."></textarea>
         </div>
         <div style="grid-column:1/-1;">
           <label style="display:block;font-size:13px;color:var(--muted);margin-bottom:6px;">Foto do produto</label>
-          
-          <!-- ÁREA DE COLAR IMAGEM -->
           <div id="pasteArea" class="paste-area" onclick="document.getElementById('hiddenFileInput').click();">
             <strong>📋 Clique aqui ou aperte <kbd>Ctrl+V</kbd> para colar imagem</strong>
             <p style="font-size:12px;color:var(--muted);margin-top:6px;">Também é possível selecionar arquivo abaixo</p>
           </div>
-          
           <input type="file" id="hiddenFileInput" accept="image/*" onchange="handlePhoto(event)" style="margin:12px 0;display:block;">
-          
           <div id="previewContainer" style="display:none;margin-top:12px;">
-            <img id="photoPreviewImg" style="max-width:180px;max-height:180px;border-radius:8px;border:1px solid var(--border);">
+            <img id="photoPreviewImg" style="max-width:220px;max-height:220px;border-radius:8px;border:1px solid var(--border);">
             <button onclick="removePhoto()" class="danger-btn" style="margin-top:8px;padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;">Remover imagem</button>
           </div>
         </div>
       </div>
       <div style="margin-top:24px;display:flex;gap:12px;flex-wrap:wrap;">
-        <button onclick="saveProduct()" class="gold-btn" style="padding:12px 28px;border-radius:10px;font-weight:600;cursor:pointer;">Salvar Produto</button>
+        <button onclick="saveProduct()" id="saveBtn" class="gold-btn" style="padding:12px 28px;border-radius:10px;font-weight:600;cursor:pointer;">Salvar Produto</button>
+        <button onclick="cancelEdit()" id="cancelEditBtn" class="ghost-btn" style="padding:12px 28px;border-radius:10px;cursor:pointer;display:none;">Cancelar Edição</button>
         <button onclick="clearProductForm()" class="ghost-btn" style="padding:12px 28px;border-radius:10px;cursor:pointer;">Limpar</button>
       </div>
     </div>
     <div style="background:var(--card);border:1px solid var(--border);border-radius:20px;padding:32px;">
       <h3 style="font-size:18px;font-weight:600;margin-bottom:20px;">Produtos Cadastrados</h3>
+      <div style="margin-bottom:16px;display:flex;gap:10px;align-items:center;">
+        <label style="font-size:14px;color:var(--muted);">
+          <input type="checkbox" id="showSold" onchange="renderAdminProductsList()" style="margin-right:6px;">
+          Exibir produtos vendidos
+        </label>
+      </div>
       <div id="adminProductsList"><p style="color:var(--muted);">Carregando...</p></div>
     </div>
   </div>
 
-  <!-- ========== ABA CATEGORIAS ========== -->
   <div id="tab-categories" class="tab-content">
     <div style="background:var(--card);border:1px solid var(--border);border-radius:20px;padding:32px;margin-bottom:32px;">
       <h3 style="font-size:18px;font-weight:600;margin-bottom:20px;">+ Adicionar Nova Categoria</h3>
@@ -225,11 +242,10 @@ td{padding:10px 8px;border-bottom:1px solid var(--border);font-size:14px;}
     </div>
     <div style="background:var(--card);border:1px solid var(--border);border-radius:20px;padding:32px;">
       <h3 style="font-size:18px;font-weight:600;margin-bottom:20px;">Categorias Cadastradas</h3>
-      <div id="categoriesList"><p style="color:var(--muted);">Carregando...</p></div>
+      <div id="categoriesList"><p style="color:var(--muted);">Nenhuma categoria cadastrada.</p></div>
     </div>
   </div>
 
-  <!-- ========== ABA CLIENTES ========== -->
   <div id="tab-clients" class="tab-content">
     <div style="background:var(--card);border:1px solid var(--border);border-radius:20px;padding:32px;margin-bottom:32px;">
       <h3 style="font-size:18px;font-weight:600;margin-bottom:20px;">+ Cadastrar Novo Cliente</h3>
@@ -259,7 +275,6 @@ td{padding:10px 8px;border-bottom:1px solid var(--border);font-size:14px;}
         </div>
       </div>
     </div>
-
     <div style="background:var(--card);border:1px solid var(--border);border-radius:20px;padding:32px;">
       <h3 style="font-size:18px;font-weight:600;margin-bottom:20px;">Clientes Cadastrados</h3>
       <div id="clientsList"><p style="color:var(--muted);">Carregando...</p></div>
@@ -268,10 +283,8 @@ td{padding:10px 8px;border-bottom:1px solid var(--border);font-size:14px;}
 </div>
 
 <script>
-// ========== COLAR IMAGEM DA ÁREA DE TRANSFERÊNCIA ==========
 document.addEventListener('paste', function(e) {
-  if (!isAdminMode) return; // Só funciona no painel admin
-  
+  if (!isAdminMode) return;
   const items = (e.clipboardData || e.originalEvent.clipboardData).items;
   for (let item of items) {
     if (item.kind === 'file' && item.type.startsWith('image/')) {
@@ -289,7 +302,6 @@ document.addEventListener('paste', function(e) {
   }
 });
 
-// ========== LOGIN ==========
 function openLoginModal() { document.getElementById('loginModal').style.display='block'; }
 function closeLoginModal() { document.getElementById('loginModal').style.display='none'; document.getElementById('loginError').style.display='none'; }
 function doLogin() {
@@ -314,7 +326,6 @@ function switchTab(name){
   document.querySelectorAll('.tab-content').forEach(c=>{c.classList.remove('active');if(c.id==='tab-'+name)c.classList.add('active');});
 }
 
-// ========== CATEGORIAS ==========
 async function loadCategories(){
   try{
     const snap=await db.collection('categorias').get();
@@ -355,7 +366,6 @@ function filterByCategory(name){
   renderProductsGrid();
 }
 
-// ========== PRODUTOS ==========
 async function loadProducts(){
   try{
     const snap=await db.collection('produtos').get();
@@ -366,19 +376,88 @@ async function loadProducts(){
     document.getElementById('productsGrid').innerHTML='<div style="color:red;text-align:center;padding:40px;">Erro: '+e.message+'</div>';
   }
 }
+
+// ✅ DESCRIÇÃO AGORA APARECE PARA O CLIENTE
 function renderProductsGrid(){
   const g=document.getElementById('productsGrid');
   const empty=document.getElementById('emptyState');
-  const filtered=currentCategory==='Todas'?allProducts:allProducts.filter(p=>p.categoria===currentCategory);
+  let filtered=allProducts.filter(p=>!p.vendido);
+  if(currentCategory!=='Todas') filtered=filtered.filter(p=>p.categoria===currentCategory);
   if(!filtered.length){g.innerHTML='';empty.style.display='block';return;}
   empty.style.display='none';
-  g.innerHTML=filtered.map(p=>`<div class="product-card reveal" style="background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden;"><div style="width:100%;height:200px;background:var(--bg);display:flex;align-items:center;justify-content:center;">${p.fotoBase64?`<img src="${p.fotoBase64}" style="width:100%;height:100%;object-fit:cover;">`:'<span style="color:var(--muted);">Sem foto</span>'}</div><div style="padding:16px;"><h4 style="font-weight:600;font-size:16px;margin-bottom:4px;">${p.nome}</h4>${p.codigoBarras?`<p class="barcode-text">📶 ${p.codigoBarras}</p>`:''}<p style="color:var(--muted);font-size:13px;margin:6px 0;">${p.categoria||''}</p><p style="font-size:18px;font-weight:700;color:var(--accent2);">R$ ${Number(p.preco||0).toFixed(2).replace('.',',')}</p></div></div>`).join('');
+  g.innerHTML=filtered.map(p=>`<div class="product-card reveal" style="background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden;">
+    <div class="product-image-container">
+      ${p.fotoBase64?`<img src="${p.fotoBase64}" alt="${p.nome}">`:'<span style="color:var(--muted);">Sem foto</span>'}
+    </div>
+    <div style="padding:16px;">
+      <h4 style="font-weight:600;font-size:16px;margin-bottom:4px;">${p.nome}</h4>
+      ${p.codigoBarras?`<p class="barcode-text">📶 ${p.codigoBarras}</p>`:''}
+      <p style="color:var(--muted);font-size:13px;margin:6px 0;">${p.categoria||''}</p>
+      ${p.descricao?`<p class="product-description">${p.descricao}</p>`:''}
+      <p style="font-size:18px;font-weight:700;color:var(--accent2);margin-top:8px;">R$ ${Number(p.preco||0).toFixed(2).replace('.',',')}</p>
+    </div>
+  </div>`).join('');
 }
+
 function renderAdminProductsList(){
   const c=document.getElementById('adminProductsList');
-  if(!allProducts.length)return c.innerHTML='<p style="color:var(--muted);">Nenhum produto cadastrado.</p>';
-  c.innerHTML=allProducts.map(p=>`<div style="padding:12px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;"><div><strong>${p.nome}</strong> ${p.codigoBarras?'| 📶 '+p.codigoBarras:''} — ${p.categoria||'Sem categoria'} — R$ ${Number(p.preco||0).toFixed(2).replace('.',',')}</div><button onclick="deleteProduct('${p.id}')" class="danger-btn" style="padding:6px 12px;border-radius:6px;cursor:pointer;">Excluir</button></div>`).join('');
+  const showSold=document.getElementById('showSold')?.checked || false;
+  let list=showSold ? allProducts : allProducts.filter(p=>!p.vendido);
+  if(!list.length)return c.innerHTML='<p style="color:var(--muted);">Nenhum produto cadastrado.</p>';
+  c.innerHTML=list.map(p=>`<div style="padding:12px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;${p.vendido?'opacity:0.7;':''}">
+    <div>
+      <strong>${p.nome}</strong> 
+      ${p.codigoBarras?'| 📶 '+p.codigoBarras:''} 
+      ${p.fornecedor?'| 🏷️ '+p.fornecedor:''} 
+      — ${p.categoria||'Sem categoria'} 
+      — R$ ${Number(p.preco||0).toFixed(2).replace('.',',')} 
+      ${p.vendido?'<span style="color:var(--sold);font-weight:bold;">✅ VENDIDO</span>':''}
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+      <button onclick="editProduct('${p.id}')" class="edit-btn" style="padding:4px 10px;border-radius:6px;font-size:12px;cursor:pointer;">✏️ Editar</button>
+      <button onclick="toggleSold('${p.id}', ${p.vendido})" class="${p.vendido?'ghost-btn':'sold-btn'}" style="padding:4px 10px;border-radius:6px;font-size:12px;cursor:pointer;">${p.vendido?'↩️ Reativar':'✅ Vendido'}</button>
+      <button onclick="deleteProduct('${p.id}')" class="danger-btn" style="padding:4px 10px;border-radius:6px;font-size:12px;cursor:pointer;">Excluir</button>
+    </div>
+  </div>`).join('');
 }
+
+function editProduct(productId){
+  const prod=allProducts.find(p=>p.id===productId);
+  if(!prod)return;
+  editingProductId=productId;
+  photoB64=prod.fotoBase64 || null;
+  document.getElementById('prodName').value=prod.nome || '';
+  document.getElementById('prodBarcode').value=prod.codigoBarras || '';
+  document.getElementById('prodPrice').value=prod.preco || '';
+  document.getElementById('prodCategory').value=prod.categoria || '';
+  document.getElementById('prodSupplier').value=prod.fornecedor || '';
+  document.getElementById('prodDescription').value=prod.descricao || '';
+  if(photoB64){
+    document.getElementById('photoPreviewImg').src=photoB64;
+    document.getElementById('previewContainer').style.display='block';
+  }else{
+    document.getElementById('previewContainer').style.display='none';
+  }
+  document.getElementById('productFormTitle').innerHTML='✏️ <span class="editing-title">Editando Produto:</span> '+prod.nome;
+  document.getElementById('saveBtn').innerText='Atualizar Produto';
+  document.getElementById('cancelEditBtn').style.display='inline-block';
+  document.getElementById('productFormTitle').scrollIntoView({behavior:'smooth'});
+}
+
+function cancelEdit(){
+  editingProductId=null;
+  photoB64=null;
+  document.getElementById('productFormTitle').innerHTML='+ Cadastrar Novo Produto';
+  document.getElementById('saveBtn').innerText='Salvar Produto';
+  document.getElementById('cancelEditBtn').style.display='none';
+  clearProductForm();
+}
+
+async function toggleSold(id, atualVendido){
+  await db.collection('produtos').doc(id).update({vendido: !atualVendido});
+  loadProducts();
+}
+
 function handlePhoto(e){
   const f=e.target.files[0]; if(!f)return;
   const r=new FileReader(); r.onload=x=>{photoB64=x.target.result;document.getElementById('photoPreviewImg').src=photoB64;document.getElementById('previewContainer').style.display='block';}; r.readAsDataURL(f);
@@ -389,19 +468,31 @@ function removePhoto(){
   document.getElementById('photoPreviewImg').src='';
   document.getElementById('hiddenFileInput').value='';
 }
+
 async function saveProduct(){
   const nome=document.getElementById('prodName').value.trim();
   const codigoBarras=document.getElementById('prodBarcode').value.trim();
+  const fornecedor=document.getElementById('prodSupplier').value.trim();
   const preco=parseFloat(document.getElementById('prodPrice').value||0);
   const categoria=document.getElementById('prodCategory').value;
   const descricao=document.getElementById('prodDescription').value.trim();
   if(!nome||!preco)return alert('Preencha nome e preço');
-  await db.collection('produtos').add({nome,codigoBarras,preco,categoria,descricao,fotoBase64:photoB64});
-  clearProductForm(); loadProducts();
+  const dadosProduto={nome,codigoBarras,fornecedor,preco,categoria,descricao,fotoBase64:photoB64};
+  if(editingProductId){
+    await db.collection('produtos').doc(editingProductId).update(dadosProduto);
+    alert('✅ Produto atualizado com sucesso!');
+  }else{
+    dadosProduto.vendido=false;
+    await db.collection('produtos').add(dadosProduto);
+    alert('✅ Produto cadastrado com sucesso!');
+  }
+  cancelEdit(); loadProducts();
 }
+
 function clearProductForm(){
   document.getElementById('prodName').value='';
   document.getElementById('prodBarcode').value='';
+  document.getElementById('prodSupplier').value='';
   document.getElementById('prodPrice').value='';
   document.getElementById('prodCategory').value='';
   document.getElementById('prodDescription').value='';
@@ -411,7 +502,6 @@ function clearProductForm(){
 }
 async function deleteProduct(id){ if(!confirm('Excluir produto?'))return; await db.collection('produtos').doc(id).delete(); loadProducts(); }
 
-// ========== CLIENTES ==========
 async function loadClients(){
   try{
     const snap=await db.collection('clientes').get();
@@ -452,8 +542,8 @@ function renderClientsList(){
 }
 async function deleteClient(id){ if(!confirm('Excluir este cliente?'))return; await db.collection('clientes').doc(id).delete(); loadClients(); }
 
-// ========== INICIO ==========
 window.onload=function(){ loadCategories(); loadProducts(); };
 </script>
 </body>
+</html>
 </html>
